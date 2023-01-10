@@ -97,3 +97,30 @@ where
         println!("{}", answer);
     }
 }
+
+// cfgアトリビュートはコンディショナル的な属性. ここではcargo testの時のみ有効になる
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_ok() {
+        let calclulator = RpnCalculator::new(false);
+        assert_eq!(calclulator.eval("5"), 5);
+        assert_eq!(calclulator.eval("50"), 50);
+        assert_eq!(calclulator.eval("-50"), -50);
+
+        assert_eq!(calclulator.eval("2 3 +"), 5);
+        assert_eq!(calclulator.eval("2 3 -"), -1);
+        assert_eq!(calclulator.eval("2 3 *"), 6);
+        assert_eq!(calclulator.eval("2 3 /"), 0);
+        assert_eq!(calclulator.eval("2 3 %"), 2);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_ng() {
+        let calclulator = RpnCalculator::new(false);
+        calclulator.eval("5 5 ^");
+    }
+}
