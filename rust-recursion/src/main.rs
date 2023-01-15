@@ -1,5 +1,7 @@
+#![allow(unused_imports)]
 extern crate num;
 use num::Num;
+use std::fmt::{Debug, Display};
 
 fn main() {
     println!("Recursion sample by rust");
@@ -73,7 +75,7 @@ where
 
 fn for_all<T, F>(xs: &Vec<T>, pred: F) -> bool
 where
-    T: Copy + Num + PartialOrd,
+    T: Copy,
     F: Fn(T) -> bool,
 {
     if xs.len() == 0 {
@@ -86,7 +88,7 @@ where
 
 fn exists<T, F>(xs: &Vec<T>, pred: F) -> bool
 where
-    T: Copy + Num + PartialOrd,
+    T: Copy,
     F: Fn(T) -> bool,
 {
     if xs.len() == 0 {
@@ -94,6 +96,88 @@ where
     } else {
         let (head, tail) = head_tail(&xs);
         pred(head) || exists(&tail, pred)
+    }
+}
+
+fn find<T, F>(xs: &Vec<T>, pred: F) -> Option<T>
+where
+    T: Copy,
+    F: Fn(T) -> bool,
+{
+    if xs.len() == 0 {
+        None
+    } else {
+        let (head, tail) = head_tail(&xs);
+        if pred(head) {
+            Some(head)
+        } else {
+            find(&tail, pred)
+        }
+    }
+}
+
+fn skip<T>(xs: &Vec<T>, n: i32) -> Vec<T>
+where
+    T: Copy,
+{
+    let len = xs.len();
+    if len <= 0 {
+        Vec::new()
+    } else if n <= 0 {
+        xs.clone()
+    } else {
+        let (_, tail) = head_tail(&xs);
+        skip(&tail, n - 1)
+    }
+}
+
+fn skip_while<T, F>(xs: &Vec<T>, pred: F) -> Vec<T>
+where
+    T: Copy,
+    F: Fn(T) -> bool,
+{
+    if xs.len() <= 0 {
+        Vec::new()
+    } else {
+        let (head, tail) = head_tail(&xs);
+        if !pred(head) {
+            xs.clone()
+        } else {
+            skip_while(&tail, pred)
+        }
+    }
+}
+
+fn take<T>(xs: &Vec<T>, n: i32) -> Vec<T>
+where
+    T: Copy,
+{
+    let len = xs.len();
+    if len <= 0 {
+        Vec::new()
+    } else if n <= 0 {
+        Vec::new()
+    } else {
+        let (head, tail) = head_tail(&xs);
+        return cons(head, &take(&tail, n - 1));
+    }
+}
+
+fn take_while<T, F>(xs: &Vec<T>, pred: F) -> Vec<T>
+where
+    T: Copy,
+    F: Fn(T) -> bool,
+{
+    let len = xs.len();
+    if len <= 0 {
+        Vec::new()
+    } else {
+        let (head, tail) = head_tail(&xs);
+        if !pred(head) {
+            Vec::new()
+        } else {
+            return cons(head, &take_while(&tail, pred));
+        }
     }
 }
 
@@ -115,6 +199,19 @@ where
 
     assert!(xs.len() > 0);
     (xs[0], tail(&xs))
+}
+
+fn cons<T>(x: T, xs: &Vec<T>) -> Vec<T>
+where
+    T: Copy,
+{
+    let len = xs.len() + 1;
+    let mut ret: Vec<T> = Vec::with_capacity(len);
+    ret.push(x);
+    for v in xs {
+        ret.push(*v);
+    }
+    ret
 }
 
 #[cfg(test)]
@@ -240,6 +337,121 @@ mod tests {
             let xs: Vec<i32> = vec![8, 10, 0, 2, -4];
             let result = exists(&xs, |x| x % 2 != 0);
             assert_eq!(result, false);
+        }
+    }
+
+    #[test]
+    fn test_find() {
+        {
+            let xs: Vec<i32> = vec![];
+            let ret = find(&xs, |x| x % 2 == 0);
+            assert_eq!(ret, None);
+        }
+        {
+            let xs: Vec<i32> = vec![-1, 3, 7, 0, 5];
+            let ret = find(&xs, |x| x % 2 == 0);
+            assert_eq!(ret, Some(0));
+        }
+        {
+            let xs: Vec<i32> = vec![-1, 3, 7, -3, 5];
+            let ret = find(&xs, |x| x % 2 == 0);
+            assert_eq!(ret, None);
+        }
+    }
+
+    #[test]
+    fn test_skip() {
+        {
+            let xs: Vec<i32> = vec![];
+            let ret = skip(&xs, 10);
+            assert_eq!(ret.len(), 0);
+        }
+        {
+            let xs: Vec<i32> = vec![0, 1, 2, 3, 4];
+            assert_eq!(skip(&xs, -1).len(), 5);
+            assert_eq!(skip(&xs, 0).len(), 5);
+            assert_eq!(skip(&xs, 4).len(), 1);
+            assert_eq!(skip(&xs, 5).len(), 0);
+            assert_eq!(skip(&xs, 6).len(), 0);
+        }
+        {
+            let xs: Vec<i32> = vec![0, 1, 2, 3, 4];
+            let ret = skip(&xs, 1);
+            assert_eq!(ret.len(), 4);
+            assert_eq!(ret[0], 1);
+        }
+    }
+
+    #[test]
+    fn test_skip_while() {
+        {
+            let xs: Vec<i32> = vec![];
+            let ret = skip_while(&xs, |x| x % 2 == 0);
+            assert_eq!(ret.len(), 0);
+        }
+        {
+            let xs: Vec<i32> = vec![0, 1, 2, 3, 4];
+            let ret = skip_while(&xs, |x| x < 5);
+            assert_eq!(ret.len(), 0);
+        }
+        {
+            let xs: Vec<i32> = vec![0, 1, 2, 3, 4];
+            let ret = skip_while(&xs, |x| x >= 5);
+            assert_eq!(ret.len(), 5);
+        }
+        {
+            let xs: Vec<i32> = vec![0, 1, 2, 3, 4];
+            let ret = skip_while(&xs, |x| x <= 2);
+            assert_eq!(ret.len(), 2);
+            assert_eq!(ret[0], 3);
+        }
+    }
+
+    #[test]
+    fn test_take() {
+        {
+            let xs: Vec<i32> = vec![];
+            let ret = take(&xs, 10);
+            assert_eq!(ret.len(), 0);
+        }
+        {
+            let xs: Vec<i32> = vec![0, 1, 2];
+            assert_eq!(take(&xs, 4).len(), 3);
+            assert_eq!(take(&xs, 3).len(), 3);
+            assert_eq!(take(&xs, 2).len(), 2);
+            assert_eq!(take(&xs, 1).len(), 1);
+            assert_eq!(take(&xs, 0).len(), 0);
+        }
+        {
+            let xs: Vec<i32> = vec![0, 1, 2, 3, 4];
+            let ret = take(&xs, 2);
+            assert_eq!(ret.len(), 2);
+            assert_eq!(ret[1], 1);
+        }
+    }
+
+    #[test]
+    fn test_take_while() {
+        {
+            let xs: Vec<i32> = vec![];
+            let ret = take_while(&xs, |x| x % 2 == 0);
+            assert_eq!(ret.len(), 0);
+        }
+        {
+            let xs: Vec<i32> = vec![0, 1, 2, 3, 4];
+            let ret = take_while(&xs, |x| x > 4);
+            assert_eq!(ret.len(), 0);
+        }
+        {
+            let xs: Vec<i32> = vec![0, 1, 2, 3, 4];
+            let ret = take_while(&xs, |x| x <= 4);
+            assert_eq!(ret.len(), 5);
+        }
+        {
+            let xs: Vec<i32> = vec![0, 1, 2, 3, 4];
+            let ret = take_while(&xs, |x| x <= 2);
+            assert_eq!(ret.len(), 3);
+            assert_eq!(ret[2], 2);
         }
     }
 }
