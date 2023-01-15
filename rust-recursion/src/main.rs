@@ -181,6 +181,21 @@ where
     }
 }
 
+fn map<T, U, F>(xs: &Vec<T>, pred: F) -> Vec<U>
+where
+    T: Copy,
+    U: Copy,
+    F: Fn(T) -> U,
+{
+    let len = xs.len();
+    if len <= 0 {
+        Vec::new()
+    } else {
+        let (head, tail) = head_tail(&xs);
+        cons(pred(head), &map(&tail, pred))
+    }
+}
+
 fn head_tail<T>(xs: &Vec<T>) -> (T, Vec<T>)
 where
     T: Copy,
@@ -452,6 +467,25 @@ mod tests {
             let ret = take_while(&xs, |x| x <= 2);
             assert_eq!(ret.len(), 3);
             assert_eq!(ret[2], 2);
+        }
+    }
+
+    #[test]
+    fn test_map() {
+        {
+            let xs: Vec<i32> = vec![0, 1, 2, 3, 4];
+            let mapped: Vec<i32> = map(&xs, |x| x * 2);
+            assert_eq!(mapped.len(), 5);
+            assert_eq!(mapped[0], 0);
+            assert_eq!(mapped[1], 2);
+            assert_eq!(mapped[4], 8);
+        }
+        {
+            let xs: Vec<f64> = vec![0.0, 1.3, 2.0, 3.5, 4.2];
+            let mapped: Vec<i32> = map(&xs, |x| x as i32);
+            assert_eq!(mapped.len(), 5);
+            assert_eq!(mapped[1], 1);
+            assert_eq!(mapped[4], 4);
         }
     }
 }
