@@ -73,7 +73,7 @@ where
     }
 }
 
-fn for_all<T, F>(xs: &Vec<T>, pred: F) -> bool
+fn for_all<T, F>(xs: &Vec<T>, pred: &F) -> bool
 where
     T: Copy,
     F: Fn(T) -> bool,
@@ -86,7 +86,7 @@ where
     }
 }
 
-fn exists<T, F>(xs: &Vec<T>, pred: F) -> bool
+fn exists<T, F>(xs: &Vec<T>, pred: &F) -> bool
 where
     T: Copy,
     F: Fn(T) -> bool,
@@ -99,7 +99,7 @@ where
     }
 }
 
-fn find<T, F>(xs: &Vec<T>, pred: F) -> Option<T>
+fn find<T, F>(xs: &Vec<T>, pred: &F) -> Option<T>
 where
     T: Copy,
     F: Fn(T) -> bool,
@@ -131,7 +131,7 @@ where
     }
 }
 
-fn skip_while<T, F>(xs: &Vec<T>, pred: F) -> Vec<T>
+fn skip_while<T, F>(xs: &Vec<T>, pred: &F) -> Vec<T>
 where
     T: Copy,
     F: Fn(T) -> bool,
@@ -163,7 +163,7 @@ where
     }
 }
 
-fn take_while<T, F>(xs: &Vec<T>, pred: F) -> Vec<T>
+fn take_while<T, F>(xs: &Vec<T>, pred: &F) -> Vec<T>
 where
     T: Copy,
     F: Fn(T) -> bool,
@@ -181,7 +181,7 @@ where
     }
 }
 
-fn map<T, U, F>(xs: &Vec<T>, pred: F) -> Vec<U>
+fn map<T, U, F>(xs: &Vec<T>, pred: &F) -> Vec<U>
 where
     T: Copy,
     U: Copy,
@@ -321,17 +321,17 @@ mod tests {
     fn test_for_all() {
         {
             let xs: Vec<i32> = vec![];
-            let result = for_all(&xs, |x| x % 2 == 0);
+            let result = for_all(&xs, &|x| x % 2 == 0);
             assert_eq!(result, true);
         }
         {
             let xs: Vec<i32> = vec![8, 10, 0, 2, -4];
-            let result = for_all(&xs, |x| x % 2 == 0);
+            let result = for_all(&xs, &|x| x % 2 == 0);
             assert_eq!(result, true);
         }
         {
             let xs: Vec<i32> = vec![8, -1, 0, 2, -4];
-            let result = for_all(&xs, |x| x % 2 == 0);
+            let result = for_all(&xs, &|x| x % 2 == 0);
             assert_eq!(result, false);
         }
     }
@@ -340,17 +340,17 @@ mod tests {
     fn test_exists() {
         {
             let xs: Vec<i32> = vec![];
-            let result = exists(&xs, |x| x % 2 != 0);
+            let result = exists(&xs, &|x| x % 2 != 0);
             assert_eq!(result, false);
         }
         {
             let xs: Vec<i32> = vec![8, -1, 0, 2, -4];
-            let result = exists(&xs, |x| x % 2 != 0);
+            let result = exists(&xs, &|x| x % 2 != 0);
             assert_eq!(result, true);
         }
         {
             let xs: Vec<i32> = vec![8, 10, 0, 2, -4];
-            let result = exists(&xs, |x| x % 2 != 0);
+            let result = exists(&xs, &|x| x % 2 != 0);
             assert_eq!(result, false);
         }
     }
@@ -359,17 +359,17 @@ mod tests {
     fn test_find() {
         {
             let xs: Vec<i32> = vec![];
-            let ret = find(&xs, |x| x % 2 == 0);
+            let ret = find(&xs, &|x| x % 2 == 0);
             assert_eq!(ret, None);
         }
         {
             let xs: Vec<i32> = vec![-1, 3, 7, 0, 5];
-            let ret = find(&xs, |x| x % 2 == 0);
+            let ret = find(&xs, &|x| x % 2 == 0);
             assert_eq!(ret, Some(0));
         }
         {
             let xs: Vec<i32> = vec![-1, 3, 7, -3, 5];
-            let ret = find(&xs, |x| x % 2 == 0);
+            let ret = find(&xs, &|x| x % 2 == 0);
             assert_eq!(ret, None);
         }
     }
@@ -401,22 +401,22 @@ mod tests {
     fn test_skip_while() {
         {
             let xs: Vec<i32> = vec![];
-            let ret = skip_while(&xs, |x| x % 2 == 0);
+            let ret = skip_while(&xs, &|x| x % 2 == 0);
             assert_eq!(ret.len(), 0);
         }
         {
             let xs: Vec<i32> = vec![0, 1, 2, 3, 4];
-            let ret = skip_while(&xs, |x| x < 5);
+            let ret = skip_while(&xs, &|x| x < 5);
             assert_eq!(ret.len(), 0);
         }
         {
             let xs: Vec<i32> = vec![0, 1, 2, 3, 4];
-            let ret = skip_while(&xs, |x| x >= 5);
+            let ret = skip_while(&xs, &|x| x >= 5);
             assert_eq!(ret.len(), 5);
         }
         {
             let xs: Vec<i32> = vec![0, 1, 2, 3, 4];
-            let ret = skip_while(&xs, |x| x <= 2);
+            let ret = skip_while(&xs, &|x| x <= 2);
             assert_eq!(ret.len(), 2);
             assert_eq!(ret[0], 3);
         }
@@ -449,22 +449,22 @@ mod tests {
     fn test_take_while() {
         {
             let xs: Vec<i32> = vec![];
-            let ret = take_while(&xs, |x| x % 2 == 0);
+            let ret = take_while(&xs, &|x| x % 2 == 0);
             assert_eq!(ret.len(), 0);
         }
         {
             let xs: Vec<i32> = vec![0, 1, 2, 3, 4];
-            let ret = take_while(&xs, |x| x > 4);
+            let ret = take_while(&xs, &|x| x > 4);
             assert_eq!(ret.len(), 0);
         }
         {
             let xs: Vec<i32> = vec![0, 1, 2, 3, 4];
-            let ret = take_while(&xs, |x| x <= 4);
+            let ret = take_while(&xs, &|x| x <= 4);
             assert_eq!(ret.len(), 5);
         }
         {
             let xs: Vec<i32> = vec![0, 1, 2, 3, 4];
-            let ret = take_while(&xs, |x| x <= 2);
+            let ret = take_while(&xs, &|x| x <= 2);
             assert_eq!(ret.len(), 3);
             assert_eq!(ret[2], 2);
         }
@@ -474,7 +474,7 @@ mod tests {
     fn test_map() {
         {
             let xs: Vec<i32> = vec![0, 1, 2, 3, 4];
-            let mapped: Vec<i32> = map(&xs, |x| x * 2);
+            let mapped: Vec<i32> = map(&xs, &|x| x * 2);
             assert_eq!(mapped.len(), 5);
             assert_eq!(mapped[0], 0);
             assert_eq!(mapped[1], 2);
@@ -482,7 +482,7 @@ mod tests {
         }
         {
             let xs: Vec<f64> = vec![0.0, 1.3, 2.0, 3.5, 4.2];
-            let mapped: Vec<i32> = map(&xs, |x| x as i32);
+            let mapped: Vec<i32> = map(&xs, &|x| x as i32);
             assert_eq!(mapped.len(), 5);
             assert_eq!(mapped[1], 1);
             assert_eq!(mapped[4], 4);
