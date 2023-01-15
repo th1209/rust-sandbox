@@ -1,13 +1,18 @@
+extern crate num;
+use num::Num;
+
 fn main() {
     let xs: Vec<i32> = vec![0, 1, 2, 3, 4];
     let sum = sum(&xs);
     println!("sum:{}", sum);
 }
 
-
-fn sum(xs: &Vec<i32>) -> i32 {
+fn sum<T>(xs: &Vec<T>) -> T
+where
+    T: Copy + Num,
+{
     if xs.len() == 0 {
-        0
+        T::zero()
     } else {
         let (head, tail) = head_tail(&xs);
         head + sum(&tail)
@@ -34,7 +39,6 @@ where
     (xs[0], tail(&xs))
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -55,6 +59,11 @@ mod tests {
             let xs: Vec<i32> = vec![-3, -1, 0, 1, 3, 5];
             let sum = sum(&xs);
             assert_eq!(sum, 5);
+        }
+        {
+            let xs: Vec<f64> = vec![0.0, 1.1, 2.2, 3.3, 4.4];
+            let sum = sum(&xs);
+            assert_eq!(sum, 11.0);
         }
     }
 }
