@@ -11,42 +11,32 @@ fn sum<T>(xs: &Vec<T>) -> T
 where
     T: Copy + Num,
 {
-    _match_empty_or(&xs, &|| T::zero(), &|y, ys| y + sum(ys))
+    fold_back(xs, T::zero(), &|init, acc| init + acc)
+    // fold(xs, T::zero(),  &|x, y| x + y)
 }
 
 fn length<T>(xs: &Vec<T>) -> i32
 where
     T: Copy,
 {
-    _match_empty_or(&xs, &|| 0, &|_, ys| 1 + length(ys))
+    fold_back(xs, 0, &|_, acc| acc + 1)
+    // fold(xs, 0,  &|x, _| x + 1)
 }
 
 fn max<T>(xs: &Vec<T>) -> T
 where
     T: Copy + Num + PartialOrd,
 {
-    _match_single_or(&xs, &|y| y, &|y, ys| {
-        let ret = max(ys);
-        if y > ret {
-            y
-        } else {
-            ret
-        }
-    })
+    //reduce_back(xs, &|x, y| if x > y { x } else { y })
+    reduce(xs, &|x, y| if x > y { x } else { y })
 }
 
 fn min<T>(xs: &Vec<T>) -> T
 where
     T: Copy + Num + PartialOrd,
 {
-    _match_single_or(&xs, &|y| y, &|y, ys| {
-        let ret = min(ys);
-        if y < ret {
-            y
-        } else {
-            ret
-        }
-    })
+    reduce_back(xs, &|x, y| if x < y { x } else { y })
+    // reduce(xs, &|x, y| if x < y { x } else { y })
 }
 
 fn for_all<T, F>(xs: &Vec<T>, pred: &F) -> bool
@@ -54,7 +44,8 @@ where
     T: Copy,
     F: Fn(T) -> bool,
 {
-    _match_empty_or(&xs, &|| true, &|y, ys| pred(y) && for_all(&ys, pred))
+    fold_back(xs, true, &|x, init| pred(x) && init)
+    // fold(xs, true, &|init, x| init && pred(x))
 }
 
 fn exists<T, F>(xs: &Vec<T>, pred: &F) -> bool
@@ -62,7 +53,8 @@ where
     T: Copy,
     F: Fn(T) -> bool,
 {
-    _match_empty_or(&xs, &|| false, &|y, ys| pred(y) || exists(&ys, pred))
+    fold_back(xs, false, &|x, init| pred(x) || init)
+    // fold(xs, false, &|init, x| init || pred(x))
 }
 
 fn find<T, F>(xs: &Vec<T>, pred: &F) -> Option<T>
@@ -70,13 +62,8 @@ where
     T: Copy,
     F: Fn(T) -> bool,
 {
-    _match_empty_or(&xs, &|| None, &|y, ys| {
-        if pred(y) {
-            Some(y)
-        } else {
-            find(ys, pred)
-        }
-    })
+    fold_back(xs, None, &|x, acc| if pred(x) { Some(x) } else { acc })
+    // fold(xs, None, &|init, x| if pred(x) { Some(x) } else { init })
 }
 
 fn skip<T>(xs: &Vec<T>, n: i32) -> Vec<T>
@@ -203,7 +190,7 @@ where
     _match_empty_or(&xs, &|| Vec::new(), &|y, ys| {
         let f = filter(y);
         match f {
-            Some(v) => cons(pred(y), &choose(ys, pred, filter)),
+            Some(v) => cons(pred(v), &choose(ys, pred, filter)),
             None => choose(ys, pred, filter),
         }
     })
