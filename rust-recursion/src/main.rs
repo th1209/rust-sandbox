@@ -184,6 +184,46 @@ where
     }
 }
 
+fn collect<T, U, F>(xs: &Vec<T>, pred: &F) -> Vec<U>
+where
+    T: Copy,
+    U: Copy,
+    F: Fn(T) -> Vec<U>,
+{
+    _match_empty_or(&xs, &|| Vec::new(), &|y, ys| {
+        append(&pred(y), &collect(ys, pred))
+    })
+}
+
+fn append<T>(xs: &Vec<T>, ys: &Vec<T>) -> Vec<T>
+where
+    T: Copy,
+{
+    let mut ret = Vec::with_capacity(xs.len() + ys.len());
+    for e in xs {
+        ret.push(*e);
+    }
+    for e in ys {
+        ret.push(*e);
+    }
+    ret
+}
+
+fn partition<T, F>(xs: &Vec<T>, pred: &F) -> (Vec<T>, Vec<T>)
+where
+    T: Copy,
+    F: Fn(T) -> bool,
+{
+    _match_empty_or(&xs, &|| (Vec::new(), Vec::new()), &|y, ys| {
+        let t_f = partition(&ys, pred);
+        return if pred(y) {
+            (cons(y, &t_f.0), t_f.1)
+        } else {
+            (t_f.0, cons(y, &t_f.1))
+        };
+    })
+}
+
 fn head_tail<T>(xs: &Vec<T>) -> (T, Vec<T>)
 where
     T: Copy,
@@ -475,6 +515,74 @@ mod tests {
             assert_eq!(mapped.len(), 5);
             assert_eq!(mapped[1], 1);
             assert_eq!(mapped[4], 4);
+        }
+    }
+
+    #[test]
+    fn test_collect() {
+        {
+            let xs: Vec<u32> = vec![];
+            let collected: Vec<u32> = collect(&xs, &|_| vec![]);
+            assert_eq!(collected.len(), 0);
+        }
+        {
+            let xs: Vec<u32> = vec![1, 2, 5];
+            let collected = collect(&xs, &|x| {
+                let capacity = usize::try_from(x).unwrap();
+                let mut v = Vec::with_capacity(capacity);
+                for i in 0..=x {
+                    v.push(i);
+                }
+                v
+            });
+            assert_eq!(collected.len(), (1 + 1) + (2 + 1) + (5 + 1));
+            assert_eq!(collected[0], 0);
+            assert_eq!(collected[1], 1);
+            assert_eq!(collected[5], 0);
+            assert_eq!(collected[10], 5);
+        }
+        {
+            // こういう風に､組み合わせを作れるのがcollectの使い所
+            let values = vec![0, 1, 2];
+            let bools = vec![true, false];
+            let collected = collect(&values, &|x| {
+                return collect(&bools, &|b| {
+                    return vec![(x, b)];
+                });
+            });
+            assert_eq!(collected.len(), values.len() * bools.len());
+            assert_eq!(collected[0].0, 0);
+            assert_eq!(collected[0].1, true);
+            assert_eq!(collected[5].0, 2);
+            assert_eq!(collected[5].1, false);
+        }
+    }
+
+    #[test]
+    fn test_partition() {
+        {
+            let xs:Vec<i32> = vec![];
+            let t_f = partition(&xs, &|_| true);
+            assert_eq!(t_f.0.len(), 0);
+            assert_eq!(t_f.1.len(), 0);
+        }
+        {
+            let xs = vec![0, 1, 2];
+            let t_f = partition(&xs, &|_| true);
+            assert_eq!(t_f.0.len(), 3);
+            assert_eq!(t_f.1.len(), 0);
+        }
+        {
+            let xs = vec![0, 1, 2];
+            let t_f = partition(&xs, &|_| false);
+            assert_eq!(t_f.0.len(), 0);
+            assert_eq!(t_f.1.len(), 3);
+        }
+        {
+            let xs = vec![0, -3, 2, 2, -5];
+            let t_f = partition(&xs, &|x| x >= 0);
+            assert_eq!(t_f.0.len(), 3);
+            assert_eq!(t_f.1.len(), 2);
         }
     }
 }
