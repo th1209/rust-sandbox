@@ -11,42 +11,42 @@ fn sum<T>(xs: &Vec<T>) -> T
 where
     T: Copy + Num,
 {
-    _match_empty_or(&xs, 
-        &|| T::zero(),
-        &|y, ys| y + sum(ys))
+    _match_empty_or(&xs, &|| T::zero(), &|y, ys| y + sum(ys))
 }
 
 fn length<T>(xs: &Vec<T>) -> i32
 where
     T: Copy,
 {
-    _match_empty_or(&xs, 
-        &|| 0,
-        &|y, ys| 1 + length(ys))
+    _match_empty_or(&xs, &|| 0, &|_, ys| 1 + length(ys))
 }
 
 fn max<T>(xs: &Vec<T>) -> T
 where
     T: Copy + Num + PartialOrd,
 {
-    _match_single_or(&xs, 
-        &|y| y,
-        &|y, ys| {
-            let ret = max(ys);
-            if y > ret { y } else { ret }
-        })
+    _match_single_or(&xs, &|y| y, &|y, ys| {
+        let ret = max(ys);
+        if y > ret {
+            y
+        } else {
+            ret
+        }
+    })
 }
 
 fn min<T>(xs: &Vec<T>) -> T
 where
     T: Copy + Num + PartialOrd,
 {
-    _match_single_or(&xs, 
-        &|y| y,
-        &|y, ys| {
-            let ret = min(ys);
-            if y < ret { y } else { ret }
-        })
+    _match_single_or(&xs, &|y| y, &|y, ys| {
+        let ret = min(ys);
+        if y < ret {
+            y
+        } else {
+            ret
+        }
+    })
 }
 
 fn for_all<T, F>(xs: &Vec<T>, pred: &F) -> bool
@@ -54,9 +54,7 @@ where
     T: Copy,
     F: Fn(T) -> bool,
 {
-    _match_empty_or(&xs, 
-        &|| true,
-        &|y, ys| pred(y) && for_all(&ys, pred))
+    _match_empty_or(&xs, &|| true, &|y, ys| pred(y) && for_all(&ys, pred))
 }
 
 fn exists<T, F>(xs: &Vec<T>, pred: &F) -> bool
@@ -64,9 +62,7 @@ where
     T: Copy,
     F: Fn(T) -> bool,
 {
-    _match_empty_or(&xs, 
-        &|| false,
-        &|y, ys| pred(y) || exists(&ys, pred))
+    _match_empty_or(&xs, &|| false, &|y, ys| pred(y) || exists(&ys, pred))
 }
 
 fn find<T, F>(xs: &Vec<T>, pred: &F) -> Option<T>
@@ -74,9 +70,13 @@ where
     T: Copy,
     F: Fn(T) -> bool,
 {
-    _match_empty_or(&xs, 
-        &|| None,
-        &|y, ys| if pred(y) { Some(y) } else { find(ys, pred) })
+    _match_empty_or(&xs, &|| None, &|y, ys| {
+        if pred(y) {
+            Some(y)
+        } else {
+            find(ys, pred)
+        }
+    })
 }
 
 fn skip<T>(xs: &Vec<T>, n: i32) -> Vec<T>
@@ -150,10 +150,7 @@ where
     U: Copy,
     F: Fn(T) -> U,
 {
-    _match_empty_or(&xs, 
-        &|| Vec::new(),
-        &|y, ys| cons(pred(y), &map(ys, pred))
-    )
+    _match_empty_or(&xs, &|| Vec::new(), &|y, ys| cons(pred(y), &map(ys, pred)))
 }
 
 fn _match_empty_or<T, U, F1, F2>(xs: &Vec<T>, empty_case: &F1, not_empty_case: &F2) -> U
@@ -187,7 +184,6 @@ where
     }
 }
 
-
 fn head_tail<T>(xs: &Vec<T>) -> (T, Vec<T>)
 where
     T: Copy,
@@ -220,6 +216,7 @@ where
     }
     ret
 }
+
 
 #[cfg(test)]
 mod tests {
