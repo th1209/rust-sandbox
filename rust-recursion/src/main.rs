@@ -200,15 +200,47 @@ where
     F1: Fn(T) -> U,
     F2: Fn(T) -> Option<T>,
 {
-    _match_empty_or(&xs, 
-        &|| Vec::new(),
-        &|y, ys| {
-            let f = filter(y);
-            match f {
-                Some(v) => cons(pred(y), &choose(ys, pred, filter)),
-                None => choose(ys, pred, filter)
-            }
-        })
+    _match_empty_or(&xs, &|| Vec::new(), &|y, ys| {
+        let f = filter(y);
+        match f {
+            Some(v) => cons(pred(y), &choose(ys, pred, filter)),
+            None => choose(ys, pred, filter),
+        }
+    })
+}
+
+fn fold_back<T, U, F>(xs: &Vec<T>, init: U, pred: &F) -> U
+where
+    T: Copy,
+    U: Copy,
+    F: Fn(T, U) -> U,
+{
+    _match_empty_or(&xs, &|| init, &|y, ys| pred(y, fold_back(ys, init, pred)))
+}
+
+fn fold<T, U, F>(xs: &Vec<T>, init: U, pred: &F) -> U
+where
+    T: Copy,
+    U: Copy,
+    F: Fn(U, T) -> U,
+{
+    _match_empty_or(&xs, &|| init, &|y, ys| fold(&ys, pred(init, y), pred))
+}
+
+fn reduce_back<T, F>(xs: &Vec<T>, pred: &F) -> T
+where
+    T: Copy,
+    F: Fn(T, T) -> T,
+{
+    _match_single_or(&xs, &|y| y, &|y, ys| pred(y, reduce_back(ys, pred)))
+}
+
+fn reduce<T, F>(xs: &Vec<T>, pred: &F) -> T
+where
+    T: Copy,
+    F: Fn(T, T) -> T,
+{
+    _match_empty_or(&xs, &|| panic!(""), &|y, ys| fold(&ys, y, pred))
 }
 
 fn _match_empty_or<T, U, F1, F2>(xs: &Vec<T>, empty_case: &F1, not_empty_case: &F2) -> U
@@ -274,7 +306,6 @@ where
     }
     ret
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -579,7 +610,7 @@ mod tests {
     #[test]
     fn test_partition() {
         {
-            let xs:Vec<i32> = vec![];
+            let xs: Vec<i32> = vec![];
             let t_f = partition(&xs, &|_| true);
             assert_eq!(t_f.0.len(), 0);
             assert_eq!(t_f.1.len(), 0);
@@ -607,12 +638,12 @@ mod tests {
     #[test]
     fn test_choose() {
         {
-            let xs:Vec<i32> = vec![];
+            let xs: Vec<i32> = vec![];
             let choosed = choose(&xs, &|x| x, &|x| Some(x));
             assert_eq!(choosed.len(), 0);
         }
         {
-            let xs:Vec<i32> = vec![0, -2, 1, 9, -6];
+            let xs: Vec<i32> = vec![0, -2, 1, 9, -6];
             let choosed = choose(&xs, &|x| x * 2, &|x| if x >= 0 { Some(x) } else { None });
             assert_eq!(choosed.len(), 3);
             assert_eq!(choosed[0], 0);
