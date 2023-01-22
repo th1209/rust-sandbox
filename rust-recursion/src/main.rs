@@ -153,37 +153,6 @@ where
     _match_empty_or(&xs, &|| Vec::new(), &|y, ys| cons(pred(y), &map(ys, pred)))
 }
 
-fn _match_empty_or<T, U, F1, F2>(xs: &Vec<T>, empty_case: &F1, not_empty_case: &F2) -> U
-where
-    T: Copy,
-    F1: Fn() -> U,
-    F2: Fn(T, &Vec<T>) -> U,
-{
-    if xs.len() == 0 {
-        empty_case()
-    } else {
-        let (head, tail) = head_tail(&xs);
-        not_empty_case(head, &tail)
-    }
-}
-
-fn _match_single_or<T, U, F1, F2>(xs: &Vec<T>, single_case: &F1, multiple_case: &F2) -> U
-where
-    T: Copy,
-    F1: Fn(T) -> U,
-    F2: Fn(T, &Vec<T>) -> U,
-{
-    let len = xs.len();
-    match len {
-        l if l == 1 => single_case(xs[0]),
-        l if l > 1 => {
-            let (head, tail) = head_tail(&xs);
-            multiple_case(head, &tail)
-        }
-        _ => panic!("Collection length was zero."),
-    }
-}
-
 fn collect<T, U, F>(xs: &Vec<T>, pred: &F) -> Vec<U>
 where
     T: Copy,
@@ -222,6 +191,37 @@ where
             (t_f.0, cons(y, &t_f.1))
         };
     })
+}
+
+fn _match_empty_or<T, U, F1, F2>(xs: &Vec<T>, empty_case: &F1, not_empty_case: &F2) -> U
+where
+    T: Copy,
+    F1: Fn() -> U,
+    F2: Fn(T, &Vec<T>) -> U,
+{
+    if xs.len() == 0 {
+        empty_case()
+    } else {
+        let (head, tail) = head_tail(&xs);
+        not_empty_case(head, &tail)
+    }
+}
+
+fn _match_single_or<T, U, F1, F2>(xs: &Vec<T>, single_case: &F1, multiple_case: &F2) -> U
+where
+    T: Copy,
+    F1: Fn(T) -> U,
+    F2: Fn(T, &Vec<T>) -> U,
+{
+    let len = xs.len();
+    match len {
+        l if l == 1 => single_case(xs[0]),
+        l if l > 1 => {
+            let (head, tail) = head_tail(&xs);
+            multiple_case(head, &tail)
+        }
+        _ => panic!("Collection length was zero."),
+    }
 }
 
 fn head_tail<T>(xs: &Vec<T>) -> (T, Vec<T>)
