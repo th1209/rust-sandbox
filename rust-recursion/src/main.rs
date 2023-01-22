@@ -11,66 +11,42 @@ fn sum<T>(xs: &Vec<T>) -> T
 where
     T: Copy + Num,
 {
-    if xs.len() == 0 {
-        T::zero()
-    } else {
-        let (head, tail) = head_tail(&xs);
-        head + sum(&tail)
-    }
+    _match_empty_or(&xs, 
+        &|| T::zero(),
+        &|y, ys| y + sum(ys))
 }
 
 fn length<T>(xs: &Vec<T>) -> i32
 where
     T: Copy,
 {
-    if xs.len() == 0 {
-        0
-    } else {
-        let (_, tail) = head_tail(&xs);
-        1 + length(&tail)
-    }
+    _match_empty_or(&xs, 
+        &|| 0,
+        &|y, ys| 1 + length(ys))
 }
 
 fn max<T>(xs: &Vec<T>) -> T
 where
     T: Copy + Num + PartialOrd,
 {
-    let len = xs.len();
-    match len {
-        l if l == 1 => xs[0],
-        l if l > 1 => {
-            let (head, tail) = head_tail(&xs);
-            let ret = max(&tail);
-            if head > ret {
-                head
-            } else {
-                ret
-            }
-        }
-
-        _ => panic!("Collection length was zero."),
-    }
+    _match_single_or(&xs, 
+        &|y| y,
+        &|y, ys| {
+            let ret = max(ys);
+            if y > ret { y } else { ret }
+        })
 }
 
 fn min<T>(xs: &Vec<T>) -> T
 where
     T: Copy + Num + PartialOrd,
 {
-    let len = xs.len();
-    match len {
-        l if l == 1 => xs[0],
-        l if l > 1 => {
-            let (head, tail) = head_tail(&xs);
-            let ret = min(&tail);
-            if head < ret {
-                head
-            } else {
-                ret
-            }
-        }
-
-        _ => panic!("Collection length was zero."),
-    }
+    _match_single_or(&xs, 
+        &|y| y,
+        &|y, ys| {
+            let ret = min(ys);
+            if y < ret { y } else { ret }
+        })
 }
 
 fn for_all<T, F>(xs: &Vec<T>, pred: &F) -> bool
@@ -78,12 +54,9 @@ where
     T: Copy,
     F: Fn(T) -> bool,
 {
-    if xs.len() == 0 {
-        true
-    } else {
-        let (head, tail) = head_tail(&xs);
-        pred(head) && for_all(&tail, pred)
-    }
+    _match_empty_or(&xs, 
+        &|| true,
+        &|y, ys| pred(y) && for_all(&ys, pred))
 }
 
 fn exists<T, F>(xs: &Vec<T>, pred: &F) -> bool
@@ -91,12 +64,9 @@ where
     T: Copy,
     F: Fn(T) -> bool,
 {
-    if xs.len() == 0 {
-        false
-    } else {
-        let (head, tail) = head_tail(&xs);
-        pred(head) || exists(&tail, pred)
-    }
+    _match_empty_or(&xs, 
+        &|| false,
+        &|y, ys| pred(y) || exists(&ys, pred))
 }
 
 fn find<T, F>(xs: &Vec<T>, pred: &F) -> Option<T>
@@ -104,16 +74,9 @@ where
     T: Copy,
     F: Fn(T) -> bool,
 {
-    if xs.len() == 0 {
-        None
-    } else {
-        let (head, tail) = head_tail(&xs);
-        if pred(head) {
-            Some(head)
-        } else {
-            find(&tail, pred)
-        }
-    }
+    _match_empty_or(&xs, 
+        &|| None,
+        &|y, ys| if pred(y) { Some(y) } else { find(ys, pred) })
 }
 
 fn skip<T>(xs: &Vec<T>, n: i32) -> Vec<T>
@@ -187,13 +150,13 @@ where
     U: Copy,
     F: Fn(T) -> U,
 {
-    match_impl(&xs, 
+    _match_empty_or(&xs, 
         &|| Vec::new(),
         &|y, ys| cons(pred(y), &map(ys, pred))
     )
 }
 
-fn match_impl<T, U, F1, F2>(xs: &Vec<T>, empty_case: &F1, not_empty_case: &F2) -> U
+fn _match_empty_or<T, U, F1, F2>(xs: &Vec<T>, empty_case: &F1, not_empty_case: &F2) -> U
 where
     T: Copy,
     F1: Fn() -> U,
@@ -206,6 +169,24 @@ where
         not_empty_case(head, &tail)
     }
 }
+
+fn _match_single_or<T, U, F1, F2>(xs: &Vec<T>, single_case: &F1, multiple_case: &F2) -> U
+where
+    T: Copy,
+    F1: Fn(T) -> U,
+    F2: Fn(T, &Vec<T>) -> U,
+{
+    let len = xs.len();
+    match len {
+        l if l == 1 => single_case(xs[0]),
+        l if l > 1 => {
+            let (head, tail) = head_tail(&xs);
+            multiple_case(head, &tail)
+        }
+        _ => panic!("Collection length was zero."),
+    }
+}
+
 
 fn head_tail<T>(xs: &Vec<T>) -> (T, Vec<T>)
 where
