@@ -193,6 +193,24 @@ where
     })
 }
 
+fn choose<T, U, F1, F2>(xs: &Vec<T>, pred: &F1, filter: &F2) -> Vec<U>
+where
+    T: Copy,
+    U: Copy,
+    F1: Fn(T) -> U,
+    F2: Fn(T) -> Option<T>,
+{
+    _match_empty_or(&xs, 
+        &|| Vec::new(),
+        &|y, ys| {
+            let f = filter(y);
+            match f {
+                Some(v) => cons(pred(y), &choose(ys, pred, filter)),
+                None => choose(ys, pred, filter)
+            }
+        })
+}
+
 fn _match_empty_or<T, U, F1, F2>(xs: &Vec<T>, empty_case: &F1, not_empty_case: &F2) -> U
 where
     T: Copy,
@@ -583,6 +601,23 @@ mod tests {
             let t_f = partition(&xs, &|x| x >= 0);
             assert_eq!(t_f.0.len(), 3);
             assert_eq!(t_f.1.len(), 2);
+        }
+    }
+
+    #[test]
+    fn test_choose() {
+        {
+            let xs:Vec<i32> = vec![];
+            let choosed = choose(&xs, &|x| x, &|x| Some(x));
+            assert_eq!(choosed.len(), 0);
+        }
+        {
+            let xs:Vec<i32> = vec![0, -2, 1, 9, -6];
+            let choosed = choose(&xs, &|x| x * 2, &|x| if x >= 0 { Some(x) } else { None });
+            assert_eq!(choosed.len(), 3);
+            assert_eq!(choosed[0], 0);
+            assert_eq!(choosed[1], 2);
+            assert_eq!(choosed[2], 18);
         }
     }
 }
