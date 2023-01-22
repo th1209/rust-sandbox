@@ -187,12 +187,23 @@ where
     U: Copy,
     F: Fn(T) -> U,
 {
-    let len = xs.len();
-    if len <= 0 {
-        Vec::new()
+    match_impl(&xs, 
+        &|| Vec::new(),
+        &|y, ys| cons(pred(y), &map(ys, pred))
+    )
+}
+
+fn match_impl<T, U, F1, F2>(xs: &Vec<T>, empty_case: &F1, not_empty_case: &F2) -> U
+where
+    T: Copy,
+    F1: Fn() -> U,
+    F2: Fn(T, &Vec<T>) -> U,
+{
+    if xs.len() == 0 {
+        empty_case()
     } else {
         let (head, tail) = head_tail(&xs);
-        cons(pred(head), &map(&tail, pred))
+        not_empty_case(head, &tail)
     }
 }
 
