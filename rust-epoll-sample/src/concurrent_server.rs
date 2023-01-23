@@ -3,7 +3,7 @@ use nix::sys::epoll::{
 };
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader, BufWriter, Write};
-use std::net::TcpListener;
+use std::net::{TcpListener, TcpStream};
 use std::os::unix::io::{AsRawFd, RawFd};
 
 pub fn start() {
@@ -19,8 +19,7 @@ pub fn start() {
     let mut ev = EpollEvent::new(epoll_in, listen_fd as u64);
     epoll_ctl(epfd, epoll_add, listen_fd, &mut ev).unwrap();
 
-    // let mut fd2buf: HashMap<i32, (BufReader<TcpStream>, BufWriter<TcpStream>)> = HashMap::new();
-    let mut fd2buf = HashMap::new();
+    let mut fd2buf: HashMap<i32, (BufReader<TcpStream>, BufWriter<TcpStream>)> = HashMap::new();
     let mut events = vec![EpollEvent::empty(); 1024];
 
     while let Ok(nfds) = epoll_wait(epfd, &mut events, -1) {
@@ -40,7 +39,24 @@ pub fn start() {
                     epoll_ctl(epfd, epoll_add, fd, &mut ev).unwrap();
                 }
             } else {
-                
+                let fd = events[n].data() as RawFd;
+                let (reader, writer) = fd2buf.get_mut(&fd).unwrap();
+
+                let mut buf = String::new();
+                let n = reader.read_line(&mut buf).unwrap();
+
+                if n == 0 {
+                    let mut ev = EpollEvent::new(epoll_in, fd as u64);
+                    epoll_ctl(epfd, epoll_del, fd, &mut ev).unwrap();
+                    fd2buf.remove(&fd);
+                    println!("closed fd = {}", fd);
+                    continue;
+                }
+
+                print!("read: fd = {} buf = {}", fd, buf);
+
+                writer.write(buf.as_bytes()).unwrap();
+                writer.flush().unwrap();
             }
         }
     }

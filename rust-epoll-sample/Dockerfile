@@ -2,6 +2,10 @@ FROM rust:1.66
 
 WORKDIR /workspace
 
+# socatコマンドのインストール(echoサーバの動作確認用)
+RUN apt-get update
+RUN apt-get -y install socat
+
 # Rust関連の環境設定
 RUN rustup component add rustfmt
 RUN rustup component add clippy
