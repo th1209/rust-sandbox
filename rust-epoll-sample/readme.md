@@ -9,5 +9,4 @@ docker run -it \
 -p 10000:10000 \
 rust-epoll-sample \
 /bin/bash
-
 ```
