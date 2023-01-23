@@ -1,0 +1,12 @@
+version: '3'
+services:
+  echo_server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    working_dir: '/workspace'
+    volumes: 
+      - .:/workspace
+    ports:
+      - 10000:10000
+    tty: true

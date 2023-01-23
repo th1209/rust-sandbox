@@ -3,13 +3,17 @@
 {
     "name": "rust-epoll-sample",
 
-    "build": {
-        // Sets the run context to one level up instead of the .devcontainer folder.
-        "context": "..",
-        // Update the 'dockerFile' property if you aren't using the standard 'Dockerfile' filename.
-        "dockerfile": "../Dockerfile"
-    },
+    // DockerComposeを使わずに､DockerFileを使う場合はこちら
+    // "build": {
+    //     // Sets the run context to one level up instead of the .devcontainer folder.
+    //     "context": "..",
+    //     // Update the 'dockerFile' property if you aren't using the standard 'Dockerfile' filename.
+    //     "dockerfile": "../Dockerfile"
+    // },
 
+    // DockerCompose向けの設定
+    "dockerComposeFile": ["../docker-compose.yaml"],
+    "service": "echo_server",
     "workspaceFolder": "/workspace",
 
     "extensions": [
