@@ -1,11 +1,28 @@
 use futures::future::{BoxFuture, FutureExt};
-use futures::task::{waker_ref, ArcWake};
+use futures::task::ArcWake;
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 use std::task::{Context, Poll};
 
-struct Hello {
+pub struct Task {
+    pub hello: Mutex<BoxFuture<'static, ()>>,
+}
+
+impl Task {
+    pub fn new() -> Self {
+        let hello = Hello::new();
+        return Task {
+            hello: Mutex::new(hello.boxed()),
+        };
+    }
+}
+
+impl ArcWake for Task {
+    fn wake_by_ref(_arc_self: &Arc<Self>) {}
+}
+
+pub struct Hello {
     state: StateHello,
 }
 
@@ -16,7 +33,7 @@ enum StateHello {
 }
 
 impl Hello {
-    fn new() -> Self {
+    pub fn new() -> Self {
         return Hello {
             state: StateHello::HELLO,
         };
@@ -43,21 +60,4 @@ impl Future for Hello {
             }
         }
     }
-}
-
-pub struct Task {
-    pub hello: Mutex<BoxFuture<'static, ()>>,
-}
-
-impl Task {
-    pub fn new() -> Self {
-        let hello = Hello::new();
-        return Task {
-            hello: Mutex::new(hello.boxed()),
-        };
-    }
-}
-
-impl ArcWake for Task {
-    fn wake_by_ref(_arc_self: &Arc<Self>) {}
 }
