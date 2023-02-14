@@ -27,6 +27,33 @@ use std::{
     task::{Context, Poll, Waker},
 };
 
+pub fn start() {
+    let executor = Executor::new();
+    let spawner = executor.get_spawner();
+    let selector = IOSelector::new();
+
+    let server = async move {
+        let listener = AsyncListener::listen("127.0.0.1:10000", selector.clone());
+
+        loop {
+            let (mut reader, mut writer, addr) = listener.accept().await;
+            println!("accept: {}", addr);
+
+            spawner.spawn(async move {
+                while let Some(buf) = reader.read_line().await {
+                    println!("read: {}, {}", addr, buf);
+                    writer.write(buf.as_bytes()).unwrap();
+                    writer.flush().unwrap();
+                }
+                println!("close: {}", addr);
+            });
+        }
+    };
+
+    executor.get_spawner().spawn(server);
+    executor.run();
+}
+
 fn write_eventfd(fd: RawFd, n: usize) {
     // &usize -> *const u8 へのキャストが一発でできないので､二度キャストする必要がある
     let ptr = &n as *const usize as *const u8;
@@ -74,7 +101,7 @@ impl IOSelector {
         if let Err(err) = epoll_ctl(self.epfd, EpollOp::EpollCtlAdd, fd, &mut ev) {
             match err {
                 nix::Error::Sys(Errno::EEXIST) => {
-                    // 一度登録したファイルディスクリプタの再設定. 上記のEPOLLONESHOTによる最適化(登録済みのファイルディスクリプタを使い回す)意図.
+                    // 一度登録したファイルディスクリプタの再設定. 上記のEPOLLONESHOTによる最適化の意図(登録済みのファイルディスクリプタを使い回す).
                     epoll_ctl(self.epfd, EpollOp::EpollCtlMod, fd, &mut ev).unwrap();
                 }
                 _ => {
@@ -138,5 +165,186 @@ impl IOSelector {
         let mut queue = self.queue.lock().unwrap();
         queue.push_back(IOOps::REMOVE(fd));
         write_eventfd(self.event, 1);
+    }
+}
+
+// Async(ノンブロッキング)なTcpListenerクラス
+struct AsyncListener {
+    listener: TcpListener,
+    selector: Arc<IOSelector>,
+}
+
+impl AsyncListener {
+    fn listen(addr: &str, selector: Arc<IOSelector>) -> AsyncListener {
+        let listener = TcpListener::bind(addr).unwrap();
+        // ここで､ノンブロッキングに設定する
+        listener.set_nonblocking(true).unwrap();
+        return AsyncListener {
+            listener: listener,
+            selector: selector,
+        };
+    }
+
+    // AsyncListnerは､コネクションのアクセプト時にFutureを実装した型を返す -> ノンブロッキングを表現している
+    fn accept(&self) -> Accept {
+        return Accept { listener: self };
+    }
+}
+
+impl Drop for AsyncListener {
+    fn drop(&mut self) {
+        self.selector.unregister(self.listener.as_raw_fd());
+    }
+}
+
+struct Accept<'a> {
+    listener: &'a AsyncListener,
+}
+
+impl<'a> Future for Accept<'a> {
+    type Output = (AsyncReader, BufWriter<TcpStream>, SocketAddr);
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        match self.listener.listener.accept() {
+            Ok((stream, addr)) => {
+                let stream0 = stream.try_clone().unwrap();
+                return Poll::Ready((
+                    AsyncReader::new(stream0, self.listener.selector.clone()),
+                    BufWriter::new(stream),
+                    addr,
+                ));
+            }
+            Err(err) => {
+                if err.kind() == std::io::ErrorKind::WouldBlock {
+                    self.listener.selector.register(
+                        EpollFlags::EPOLLIN,
+                        self.listener.listener.as_raw_fd(),
+                        cx.waker().clone(),
+                    );
+                    return Poll::Pending;
+                } else {
+                    panic!("accept: {}", err);
+                }
+            }
+        }
+    }
+}
+
+struct AsyncReader {
+    fd: RawFd,
+    reader: BufReader<TcpStream>,
+    selector: Arc<IOSelector>,
+}
+
+impl AsyncReader {
+    fn new(stream: TcpStream, selector: Arc<IOSelector>) -> AsyncReader {
+        stream.set_nonblocking(true).unwrap();
+        return AsyncReader {
+            fd: stream.as_raw_fd(),
+            reader: BufReader::new(stream),
+            selector: selector,
+        };
+    }
+
+    fn read_line(&mut self) -> ReadLine {
+        return ReadLine { reader: self };
+    }
+}
+
+impl Drop for AsyncReader {
+    fn drop(&mut self) {
+        self.selector.unregister(self.fd);
+    }
+}
+
+struct ReadLine<'a> {
+    reader: &'a mut AsyncReader,
+}
+
+impl<'a> Future for ReadLine<'a> {
+    type Output = Option<String>;
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        let mut line = String::new();
+        match self.reader.reader.read_line(&mut line) {
+            Ok(0) => return Poll::Ready(None), // 0が返ってきた場合はコネクションクローズ
+            Ok(_) => return Poll::Ready(Some(line)),
+            Err(err) => {
+                if err.kind() == std::io::ErrorKind::WouldBlock {
+                    self.reader.selector.register(
+                        EpollFlags::EPOLLIN,
+                        self.reader.fd,
+                        cx.waker().clone(),
+                    );
+                    return Poll::Pending;
+                } else {
+                    return Poll::Ready(None);
+                }
+            }
+        }
+    }
+}
+
+// ↓↓↓↓ 以下､非対称コルーチンで用いたクラス群 ↓↓↓↓
+
+pub struct Task {
+    future: Mutex<BoxFuture<'static, ()>>,
+    sender: SyncSender<Arc<Task>>,
+}
+
+impl ArcWake for Task {
+    fn wake_by_ref(arc_self: &Arc<Self>) {
+        let self0 = arc_self.clone();
+        arc_self.sender.send(self0).unwrap();
+    }
+}
+
+pub struct Executor {
+    // ※MPSCチャンネルを実行キューに見立てている
+    sender: SyncSender<Arc<Task>>,
+    receiver: Receiver<Arc<Task>>,
+}
+
+impl Executor {
+    pub fn new() -> Self {
+        let (sender, receiver) = sync_channel(1024);
+        return Executor {
+            sender: sender.clone(),
+            receiver,
+        };
+    }
+
+    pub fn get_spawner(&self) -> Spawner {
+        return Spawner {
+            sender: self.sender.clone(),
+        };
+    }
+
+    pub fn run(&self) {
+        while let Ok(task) = self.receiver.recv() {
+            let mut future = task.future.lock().unwrap();
+
+            let waker = waker_ref(&task);
+            let mut context = Context::from_waker(&waker);
+
+            let poll = future.as_mut().poll(&mut context);
+            match poll {
+                Poll::Pending => {}
+                Poll::Ready(()) => break,
+            }
+        }
+    }
+}
+
+pub struct Spawner {
+    sender: SyncSender<Arc<Task>>,
+}
+
+impl Spawner {
+    pub fn spawn(&self, future: impl Future<Output = ()> + 'static + Send) {
+        let future = future.boxed();
+        let task = Arc::new(Task {
+            future: Mutex::new(future),
+            sender: self.sender.clone(),
+        });
+        self.sender.send(task).unwrap();
     }
 }
